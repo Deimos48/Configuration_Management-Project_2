@@ -1,4 +1,5 @@
 import os
+import re
 import tarfile
 import urllib.request
 
@@ -15,21 +16,24 @@ def load_repository_data(path_or_url: str, mode: str):
                 if not line or line.startswith("#") or ":" not in line:
                     continue
                 pkg, deps = line.split(":")
-                deps_list = [d.strip() for d in deps.split(",") if d.strip()]
+                deps_list = [d.strip() for d in re.split(r"[,\s]+", deps) if d.strip()]
                 repo_data[pkg.strip()] = {"1.0": deps_list}
         return repo_data
 
     elif mode == "real":
         url = path_or_url.rstrip("/") + "/APKINDEX.tar.gz"
         apk_dir = "APK"
-        os.makedirs(apk_dir, exist_ok=True)  # создаём папку, если нет
+        os.makedirs(apk_dir, exist_ok=True)
         local_file = os.path.join(apk_dir, "APKINDEX.tar.gz")
         print(f"Скачиваем APKINDEX.tar.gz из {url} в {local_file}...")
         urllib.request.urlretrieve(url, local_file)
 
         print("Распаковываем APKINDEX...")
         with tarfile.open(local_file, "r:gz") as tar:
-            apkindex_file = tar.extractfile("APKINDEX")
+            member = next((m for m in tar.getmembers() if m.name.endswith("APKINDEX")), None)
+            if not member:
+                raise ValueError("Файл APKINDEX не найден в архиве.")
+            apkindex_file = tar.extractfile(member)
             content = apkindex_file.read().decode("utf-8").split("\n\n")
 
         print("Парсим записи...")
@@ -46,7 +50,7 @@ def load_repository_data(path_or_url: str, mode: str):
                     version = line[2:].strip()
                 elif line.startswith("D:"):
                     deps_line = line[2:].strip()
-                    deps = [d for d in deps_line.split() if d]
+                    deps = [d.strip() for d in re.split(r"[,\s]+", deps_line) if d.strip()]
             if pkg_name and version:
                 repo_data.setdefault(pkg_name, {})[version] = deps
 

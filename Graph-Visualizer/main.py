@@ -1,6 +1,6 @@
 import argparse
 import sys
-from parser_apk import get_package_dependencies, get_dependency_graph
+from parser_apk import get_dependency_graph, get_reverse_dependency_graph
 
 
 def print_graph(graph, root, prefix="", visited=None, is_last=True):
@@ -36,12 +36,13 @@ def print_graph(graph, root, prefix="", visited=None, is_last=True):
             print_graph(graph, dep, new_prefix, visited.copy(), last)
 
 def main():
-    parser = argparse.ArgumentParser(description="Этап 3: Построение графа зависимостей")
+    parser = argparse.ArgumentParser(description="Этап 4: Обратные зависимости")
     parser.add_argument("--package", required=True)
     parser.add_argument("--repo", required=True)
     parser.add_argument("--version", required=True)
     parser.add_argument("--mode", choices=["real", "test"], required=True)
     parser.add_argument("--max-depth", type=int, default=10)
+    parser.add_argument("--reverse", action="store_true", help="Показать обратные зависимости")
     args = parser.parse_args()
 
     print("Параметры запуска:")
@@ -49,8 +50,13 @@ def main():
         print(f"{arg}: {val}")
 
     try:
-        graph = get_dependency_graph(args.package, args.version, args.repo, args.mode, args.max_depth)
-        print(f"\nГраф зависимостей для пакета {args.package} ({args.version}):")
+        if args.reverse:
+            graph = get_reverse_dependency_graph(args.package, args.version, args.repo, args.mode, args.max_depth)
+            print(f"\nОбратные зависимости для пакета {args.package} ({args.version}):")
+        else:
+            graph = get_dependency_graph(args.package, args.version, args.repo, args.mode, args.max_depth)
+            print(f"\nГраф зависимостей для пакета {args.package} ({args.version}):")
+
         print_graph(graph, args.package)
     except Exception as e:
         print(f"Ошибка: {e}")
